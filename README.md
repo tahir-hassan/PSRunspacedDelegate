@@ -30,6 +30,53 @@ $awaiter.OnCompleted($action);
 
 ```
 
+## Access to local variables
+
+The best way to access local variables, in my opinion, is to store them in a queue object (`System.Collections.Generic.Queue<object>`). You can queue a hashtable containing the variables, then dequeue it in the delegate. 
+
+### Script scoped Queue
+
+Declare a queue with `Script` scope in your module file:
+
+```powershell
+$Script:TaskQueue =  [System.Collections.Generic.Queue[object]]::new();
+```
+
+### Enqueue an object
+
+Now enqueue a hashtable of the variables you want to access in the delegate:
+
+```powershell
+# local variables we want to access in the delegate:
+$name = "Tahir";     # name
+$surname = "Hassan"; # surname
+$score = 83;
+
+# create a hashtable of these local variables:
+$taskObj = @{
+    Name = $name;
+    Surname = $surname;
+    Store = $score;
+};
+
+# queue it up:
+$Script:TaskQueue.Enqueue($taskObj);
+```
+
+### Dequeuing Within Delegate
+
+You can now dequeue the element and access all the variables that were stored in there:
+
+```powershell
+$action = New-RunspacedDelegate ([System.Action]{ 
+    # dequeue the object:
+    $info = $Script:TaskQueue.Dequeue();
+
+    # now use the variables in the hashtable:
+    "Name: $( $info.Name ), Surname: $( $info.Surname ), Score: $( $info.Score )" | Out-File C:\Temp\information.txt -Append
+});
+```
+
 ## Links
 
-<a href="https://stackoverflow.com/questions/25851704/getting-result-of-net-object-asynchronous-method-in-powershell">StackOverflow.com Question</a>
+<a href="https://stackoverflow.com/questions/25851704/getting-result-of-net-object-asynchronous-method-in-powershell">StackOverflow.com Question on using Asynchronous method.</a>
