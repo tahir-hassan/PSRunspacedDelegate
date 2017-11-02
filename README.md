@@ -8,7 +8,7 @@ Use the function `New-RunspacedDelegate` to create a delegate that can reference
 
 ## Example of Use
 
-In the example below, I am creating a `System.Action` delegate and passing it to `New-RunspacedDelegate` which will then produce a new `System.Action` delegate which, when it runs, will set the runspace to the current PowerShell runspace.  This way you can access PowerShell `Global` and `Script` variables in your delegate. (You cannot access your local variables without promoting them to at least `Script` scope.
+In the example below, I am creating a `System.Action` delegate and passing it to `New-RunspacedDelegate` which will then produce a new `System.Action` delegate which, when it runs, will set the runspace to the current PowerShell runspace.  This way you can access PowerShell `Global` and `Script` variables in your delegate. (You cannot access your local variables without promoting them to at least `Script` scope.)
 
 ```powershell
 # Create the Jira REST client
