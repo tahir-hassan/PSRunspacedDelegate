@@ -2,6 +2,28 @@
 
 PowerShell module for creating delegates for use with `*Async` methods.
 
+## Installation
+
+### Installation from GitHub
+
+Just clone this directory into a Module directory should be enough:
+
+```powershell
+# go to the WindowsPowerShell directory:
+cd (Split-Path $PROFILE);
+
+# make the Modules directory if it does not exist:
+if (-not (Test-Path Modules)) {
+    mkdir Modules | Out-Null;
+}
+
+# cd to the Modules directory
+cd Modules;
+
+# clone the repository
+git clone https://github.com/tahir-hassan/PSRunspacedDelegate.git --depth 1;
+```
+
 ## Function Provided
 
 Use the function `New-RunspacedDelegate` to create a delegate that can reference objects within your PowerShell code.
