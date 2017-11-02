@@ -79,4 +79,4 @@ $action = New-RunspacedDelegate ([System.Action]{
 
 ## Links
 
-<a href="https://stackoverflow.com/questions/25851704/getting-result-of-net-object-asynchronous-method-in-powershell">StackOverflow.com Question on using Asynchronous method.</a>
+<a href="https://stackoverflow.com/questions/25851704/getting-result-of-net-object-asynchronous-method-in-powershell">StackOverflow.com - Question on using Asynchronous method</a>
