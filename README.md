@@ -1,6 +1,8 @@
 # PSRunspacedDelegate
 
-PowerShell module for creating delegates for use with `*Async` methods.
+PowerShell module for creating delegates that can access the current PowerShell runspace.
+
+Such delegates can be used for asynchronous programming.
 
 ## Installation
 
