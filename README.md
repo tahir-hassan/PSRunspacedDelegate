@@ -2,7 +2,7 @@
 
 PowerShell module for creating delegates that can access the current PowerShell runspace.
 
-Such delegates can be used for asynchronous programming.
+Such delegates can be used for asynchronous programming, and enable PowerShell code to run in a separate thread.
 
 ## Installation
 
@@ -36,48 +36,58 @@ Install-Module PSRunspacedDelegate -Scope CurrentUser
 
 ## Function Provided
 
-Use the function `New-RunspacedDelegate` to create a delegate that has access to the PowerShell environment. The delegate that `New-RunspacedDelegate` produces will be the same as the input delegate type.  Therefore, if you pass a `Func<int, int>`, you will get a `Func<int, int>` as output.  If you pass `Action<string, List<string>>`, you will get the same type, `Action<string, List<string>>`, as its output. Simply put, if you pass an argument of type `T` (as long as `T` is a delegate type), you will get an object of type `T` as output.
+Use the function `New-RunspacedDelegate` to create a delegate that has access to the PowerShell environment. 
 
-## Example of Use
+The delegate that `New-RunspacedDelegate` produces will have the same type as the input delegate.  Therefore, if you pass a `Func<int, int>`, you will get a `Func<int, int>` as output.  If you pass `Action<string, List<string>>`, you will get the same type, `Action<string, List<string>>`, as its output. Simply put, if you pass an argument of type `T` (as long as `T` is a delegate type), you will get an object of type `T` as output.
 
-In the example below, I pass a `System.Action` delegate to `New-RunspacedDelegate` which produces a new `System.Action` delegate which can access the current PowerShell runspace. Your delegate can access all `Global` and `Script` scoped variables. You cannot access your local variables, but below I have described a workaround. 
+## Examples
+
+### Starting a new thread
+
+Ordinarily, the following code will fail because we are creating and running a new thread to run PowerShell code:
 
 ```powershell
-# Create the Jira REST client
-$client = [Atlassian.Jira.Jira]::CreateRestClient($jiraUrl, $Username, $Password);
+# BAD CODE - DO NOT DO THIS!
+$writeToLog = [System.Threading.ThreadStart]{
+   "hello" | Out-File C:\TEMP\temp.txt -Append;
+};
+$thread = [System.Threading.Thread]::new($writeToLog);
+$thread.Start();
+```
 
-$workLog = New-Object Atlassian.Jira.Worklog $Time,([DateTime]::Now),"log time"
+It fails because it is attempting to run PowerShell code in a new thread that has no access to a PowerShell runspace. 
 
-# $task is a Task<Worklog> object
-$task = $client.Issues.AddWorklogAsync($Issue, $workLog, [Atlassian.Jira.WorklogStrategy]::AutoAdjustRemainingEstimate, $null, (New-Object System.Threading.CancellationToken $false))
+Instead, if we pass the `ThreadStart` to `New-RunspacedDelegate`, it will create a new `ThreadStart` object that first sets the runspace to the current runspace, and then runs the (PowerShell) `ThreadStart` that was passed in.  Therefore it won't crash:
 
-# $awaiter is a TaskAwaiter<Worklog>
-$awaiter = $task.GetAwaiter();
-
-# $action is a System.Action
-$action = New-RunspacedDelegate ([System.Action]{ 
-    # You can put PowerShell code in here
+```powershell
+#  This is OK
+$writeToLog = New-RunspacedDelegate ([System.Threading.ThreadStart]{
+   "hello" | Out-File C:\TEMP\temp.txt -Append;
 });
-
-# $action can be safely be passed to awaiter's OnCompleted method
-$awaiter.OnCompleted($action);
+$thread = [System.Threading.Thread]::new($writeToLog)
+$thread.Start();
 ```
 
-## Access to local variables
+### Handling `Task<T>` tasks
 
-The best way to access local variables, in my opinion, is to store them in a queue object (`System.Collections.Generic.Queue<object>`). You can queue a hashtable containing the variables, then dequeue it in the delegate. The queue must at `Script` or `Global` scope.
-
-### Script scoped Queue
-
-Declare a queue with `Script` scope in your module file:
+You can use `ContinueWith` method to add a continuation to a task.  For instance, given a new task that returns the day of the week:
 
 ```powershell
-$Script:TaskQueue =  [System.Collections.Generic.Queue[object]]::new();
+$getDayOfWeek = New-RunspacedDelegate ( [Func[DayOfWeek]] { [DateTime]::Today.DayOfWeek; } );
+$task = [System.Threading.Tasks.Task]::Run($getDayOfWeek);
 ```
 
-### Enqueue an object
+You can chain a continuation with the `ContinueWith` method. 
+```powershell
+$continuation = New-RunspacedDelegate ( [Action[System.Threading.Tasks.Task[DayOfWeek]]] { param($t) Write-Host "Today is $($t.Result)" } );
 
-Now enqueue a hashtable of the variables you want to access in the delegate:
+$task.ContinueWith($continuation);
+```
+#### Access to variables
+
+Local variables are not accessible from another thread.  However, `Script` and `Global` variables *can* be accessed.
+
+For local variables, an easy way to access them is to use the `ContinueWith` method with the `object` state parameter.  You can pass in a hashtable containing the variables.
 
 ```powershell
 # local variables we want to access in the delegate:
@@ -85,31 +95,28 @@ $name = "Tahir";     # name
 $surname = "Hassan"; # surname
 $score = 83;
 
+# .........................
+
 # create a hashtable of these local variables:
-$taskObj = @{
+$locals = @{
     Name = $name;
     Surname = $surname;
     Store = $score;
 };
-
-# queue it:
-$Script:TaskQueue.Enqueue($taskObj);
 ```
-
-### Dequeuing Within Delegate
-
-You can now dequeue the element and access all the variables that were stored in there:
-
+Then call the `ContinueWith` method passing in the locals:
 ```powershell
-$action = New-RunspacedDelegate ([System.Action]{ 
-    # dequeue the object:
-    $info = $Script:TaskQueue.Dequeue();
+$continuation = New-RunspacedDelegate ( [Action[System.Threading.Tasks.Task[DayOfWeek], object]] { 
+    param($t,$info) 
 
-    # now use the variables in the hashtable:
-    "Name: $( $info.Name ), Surname: $( $info.Surname ), Score: $( $info.Score )" | Out-File C:\Temp\information.txt -Append
-});
+    Write-Host "Today is $($t.Result)" -ForegroundColor Green;
+    "Name: $( $info.Name ), Surname: $( $info.Surname ), Score: $( $info.Score )" | Write-Host -ForegroundColor Green; 
+} );
+
+$task.ContinueWith($continuation, $locals);
 ```
 
 ## Links
 
-<a href="https://stackoverflow.com/questions/25851704/getting-result-of-net-object-asynchronous-method-in-powershell">StackOverflow.com - Question on using Asynchronous methods in PowerShell</a>
+* <a href="http://www.get-blog.com/?p=189">Ryan's PowerShell Blog - True PowerShell Multithreading</a>
+* <a href="https://stackoverflow.com/questions/25851704/getting-result-of-net-object-asynchronous-method-in-powershell">StackOverflow.com - Question on using Asynchronous methods in PowerShell</a>
