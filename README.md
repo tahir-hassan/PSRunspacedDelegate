@@ -101,7 +101,7 @@ $score = 83;
 $locals = @{
     Name = $name;
     Surname = $surname;
-    Store = $score;
+    Score = $score;
 };
 ```
 Then call the `ContinueWith` method passing in the locals:
