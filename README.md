@@ -119,4 +119,4 @@ $task.ContinueWith($continuation, $locals);
 ## Links
 
 * <a href="http://www.get-blog.com/?p=189">Ryan's PowerShell Blog - True PowerShell Multithreading</a>
-* <a href="https://stackoverflow.com/questions/25851704/getting-result-of-net-object-asynchronous-method-in-powershell">StackOverflow.com - Question on using Asynchronous methods in PowerShell</a>
+* <a href="https://stackoverflow.com/questions/34446404/powershell-cannot-spawn-a-new-thread">StackOverflow.com - PowerShell Thread Spawning Question</a>
